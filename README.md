@@ -9,7 +9,7 @@ Installation
 
 You can install `bics` locally by running the following one-liner
 
-    bash <(curl -sS https://raw.githubusercontent.com/bahamas10/bics/master/bics) init
+    bash <(curl -sS https://raw.githubusercontent.com/AntonioSTM/bics/master/bics) self-install
 
 Running this again after `bics` is installed will upgrade `bics` to the
 latest version from GitHub.
@@ -63,7 +63,7 @@ Plugins are installed to `~/.bics/plugins` as directories that contain 1 or more
 
 To install this plugin we run:
 
-    $ bics install https://github.com/bahamas10/bash-cdstack
+    $ bics install https://github.com/AntonioSTM/bash-cdstack
     Cloning into 'bash-cdstack'...
     remote: Counting objects: 8, done.
     remote: Compressing objects: 100% (6/6), done.
@@ -72,7 +72,7 @@ To install this plugin we run:
 
 This is a shorthand way of running:
 
-    cd ~/.bics/plugins && git clone https://github.com/bahamas10/bash-cdstack
+    cd ~/.bics/plugins && git clone https://github.com/AntonioSTM/bash-cdstack
 
 And that's it! The plugin is installed, you can start using it by running:
 
@@ -113,12 +113,12 @@ for the command line, create a `.txt` file
 
 Here is a list of plugins Dave wrote for bics:
 
-- [bash-cdstack](https://www.github.com/bahamas10/bash-cdstack)
-- [bash-analysis](https://www.github.com/bahamas10/bash-analysis)
-- [bash-dvorak](https://www.github.com/bahamas10/bash-dvorak)
-- [bash-interactivity](https://www.github.com/bahamas10/bash-interactivity)
-- [bash-path](https://www.github.com/bahamas10/bash-path)
-- [tabstop](https://www.github.com/bahamas10/tabstop)
+- [bash-cdstack](https://www.github.com/AntonioSTM/bash-cdstack)
+- [bash-analysis](https://www.github.com/AntonioSTM/bash-analysis)
+- [bash-dvorak](https://www.github.com/AntonioSTM/bash-dvorak)
+- [bash-interactivity](https://www.github.com/AntonioSTM/bash-interactivity)
+- [bash-path](https://www.github.com/AntonioSTM/bash-path)
+- [tabstop](https://www.github.com/AntonioSTM/tabstop)
 
 Plugins
 -------
@@ -133,19 +133,19 @@ execution.  Take a look at the `test-plugin` directory that is created when
 Ideally, plugins will each have their own repository here on GitHub, and
 can be stored in a users dotfiles repository as git submodules.
 
-An example real-world plugin can be seen here https://github.com/bahamas10/bash-cdstack
+An example real-world plugin can be seen here https://github.com/AntonioSTM/bash-cdstack
 
 ### Managing Plugins
 
 You can store your plugins as git submodules stored in a dotfiles repo. An
 example can be seen here, specifically the `bics-plugins` directory.
 
-https://github.com/bahamas10/dotfiles
+https://github.com/AntonioSTM/dotfiles
 
 This commit shows an example git submodule added, and logic to install `bics`
 initially and symlink the plugins directory accordingly.
 
-https://github.com/bahamas10/dotfiles/commit/50cd7a236069cf98eacf170b2d6629e814075fb8
+https://github.com/AntonioSTM/dotfiles/commit/50cd7a236069cf98eacf170b2d6629e814075fb8
 
 **NOTE:** if you use this method, `bics install` and `bics update` will not
 work as expected, you'll need to manage the plugins manually with `git`.
@@ -222,7 +222,7 @@ If `name` is empty, all plugins are updated
 You can update `bics` itself at anytime by running
 
     $ bics self-upgrade
-    > getting source from https://githubusercontent.com/bahamas10/bics/raw/master/bics... done
+    > getting source from https://githubusercontent.com/AntonioSTM/bics/raw/master/bics... done
 
 Dependencies
 ------------
@@ -251,7 +251,7 @@ Any code submitted should pass the syntax check:
     ./bics -h | expand |  awk 'length($0) > 80 { exit(1); }'
     shellcheck bics
 
-Bash style guide: https://github.com/bahamas10/bash-style-guide
+Bash style guide: https://github.com/AntonioSTM/bash-style-guide
 
 License
 -------

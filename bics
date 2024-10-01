@@ -1,270 +1,521 @@
 #!/usr/bin/env bash
-#
-# bics - bash interactive configuration system
-#
-# Control bash plugins easily
-#
-# Author: Dave Eddy <dave@daveeddy.com>
-# Date: 9/24/2013
-# License: MIT
+#/
+ # @file bics - bash interactive configuration system
+ # @version 1.0.0
+ # @description Control bash plugins easily
+ # @author AntonioSTM
+ # @license MIT
+ #
+ # @requires curl
+ # @requires git
+ #
+ # @remarks Forked from original author Dave Eddy at https://github.com/bahamas10/bics
+ # @see {@link https://www.youtube.com/watch?v=B30I0lA0Cgs|Managing Interactive Plugins with Bash - `bics` Bash Interactive Configuration System}
+#/
 
-BICS_VERSION='v0.1.1'
-BICS_SOURCED=()
 
-# bics initialization function, called when bics is sourced
-_() {
-	local f
-	for f in ~/.bics/plugins/*/*.bash; do
-		[[ -f $f ]] || continue
-		# shellcheck disable=SC1090
-		. "$f" && BICS_SOURCED+=("$f")
-	done
-}
+#region SHELL SCOPE VARIABLES
+	BICS_VERSION='v1.0.0'
+	BICS_SOURCE_URL='https://raw.githubusercontent.com/AntonioSTM/bics/master/bics'
+	BICS_SOURCED=()
+#endregion
 
-# bics bash completion
-_bics() {
-	local cmd=${COMP_WORDS[1]}
-	local word=${COMP_WORDS[COMP_CWORD]}
-	local words=()
 
-	case "$COMP_CWORD" in
-		1)
-			words=(
-				init install remove list
-				update self-upgrade version help
-			)
-			;;
-		*)
-			local installed=()
-			local f
-			for f in ~/.bics/plugins/*; do
-				[[ -d $f ]] || continue
-				installed+=("${f##*/}")
-			done
+#region INITIALIZATION
 
-			case "$cmd" in
-				remove|rm) words=("${installed[@]}");;
-				update|up) words=("${installed[@]}");;
-				help) words=("${installed[@]}");;
-			esac
-			;;
-	esac
+	#/
+	 # Initializer
+	 #
+	 # @remarks
+	 #  This function is manually called when bics is being sourced.
+	#/
+	_() {
+		local f
+		# Load installed plugins
+		for f in ~/.bics/plugins/*/*.bash; do
+			[[ -f $f ]] || continue
+			# shellcheck disable=SC1090
+			. "$f" && BICS_SOURCED+=("$f")
+		done
+	}
 
-	local _word
-	for _word in "${words[@]}"; do
-		if [[ $_word == "$word"* || -z $word ]]; then
-			COMPREPLY+=("$_word")
-		fi
-	done
-}
+#endregion
 
-# check if being sourced, logic from
-# https://github.com/lhunath/scripts/blob/master/bash/bashlib/bashlib
-if (return 2>/dev/null); then
-	alias bics=~/.bics/bics
-	complete -F _bics bics
-	_
-	unset -f _
-	return
-fi
 
-# if we are here then this script is being executed interactively
+#region BASH COMPLETION
 
-SOURCE_URL='https://raw.githubusercontent.com/bahamas10/bics/master/bics'
+	#/
+	 # Provides programmable completion
+	 # @see {@link https://www.gnu.org/software/bash/manual/html_node/A-Programmable-Completion-Example.html|8.8 A Programmable Completion Example}
+	#/
+	_bics-completion() {
+		local cmd=${COMP_WORDS[1]}
+		local word=${COMP_WORDS[COMP_CWORD]}
+		local words=()
 
-usage() {
-	local rst green
-	rst=$(tput sgr0 2>/dev/null)
-	green=$(tput setaf 2 2>/dev/null)
+		case "$COMP_CWORD" in
+			1)
+				words=(
+					self-upgrade
+					version
+					help
+					about
 
-	cat <<-EOF
-	${green}bics$rst - Bash Interactive Configuration Management \
-($BICS_VERSION)
-	Usage: bics [command] [args...]
+					list
+					install
+					upgrade
+					remove
+				)
+				;;
+			*)
+				local installed=()
+				local f
+				for f in ~/.bics/plugins/*; do
+					[[ -d $f ]] || continue
+					installed+=("${f##*/}")
+				done
 
-	Subcommands:
-	    ${green}bics install <repo> [name]$rst
-	      install a bics plugin from a git repository
-
-	    ${green}bics list$rst
-	      list installed bics plugins (in ~/.bics/plugins)
-
-	    ${green}bics remove <name> ...$rst
-	      remove a bics plugin
-
-	    ${green}bics update [name]$rst
-	      update a bics plugin via \`git pull\`.  if 'name' is not given
-	      all plugins are updated
-
-	    ${green}bics self-upgrade$rst
-	      update \`bics\` itself to the newest version from github
-
-	    ${green}bics help [name]$rst
-	      show this message and exit.  if 'name' is given show that plugins
-	      readme in \`\$PAGER\`
-
-	    ${green}bics version$rst
-	      print the version number of bics and exit
-	EOF
-}
-
-list() {
-	local f
-	for f in ~/.bics/plugins/*; do
-		[[ -d $f ]] || continue
-		echo "> ${f##*/}"
-	done
-}
-
-init() {
-	local rst green
-	rst=$(tput sgr0 2>/dev/null)
-	green=$(tput setaf 2 2>/dev/null)
-
-	if [[ ! -d ~/.bics ]]; then
-		local dir=~/.bics/plugins/test-plugin
-		mkdir -p "$dir"
-		echo "> ${green}~/.bics$rst created"
-
-		echo '# add code here' > "$dir/test-plugin.bash"
-		echo 'this plugin does nothing' > "$dir/help.txt"
-		echo '> test-plugin created'
-	fi
-
-	self-upgrade || return $?
-
-	cat <<-EOF
-
-	${green}bics$rst - Getting Started
-	1. add $green'. ~/.bics/bics'$rst to your \`.bashrc\` file
-	2. run ${green}exec bash$rst to reload your current shell
-	3. install plugins with ${green}bics install <repo>$rst
-	4. run ${green}bics list$rst to view installed plugins
-	EOF
-}
-
-install_() {
-	if [[ -z $1 ]]; then
-		echo '> repository must not be blank' >&2
-		return 1
-	fi
-
-	cd ~/.bics/plugins || return $?
-	git clone "$@"
-}
-
-remove_() {
-	if [[ -z $1 ]]; then
-		echo '> must specify a plugin to remove' >&2
-		return 1
-	fi
-
-	local yes=false
-	local option
-	while getopts y option; do
-		case "$option" in
-			y) yes=true;;
-			*) return 1;;
+				case "$cmd" in
+					help) words=("${installed[@]}") ;;
+					up | upgrade) words=("${installed[@]}") ;;
+					rm | remove) words=("${installed[@]}") ;;
+				esac
+				;;
 		esac
-	done
-	shift "$((OPTIND - 1))"
 
-	echo -n '> remove'
-	printf ' "%s"' "$@"
-	echo
-	local ans=n
-	if ! $yes; then
-		read -r -p '> are you sure? [y/N]: ' ans
-		[[ $ans == y ]] || return 1
-	fi
-
-	cd ~/.bics/plugins || return $?
-	rm -r "$@"
-}
-
-update() {
-	cd ~/.bics/plugins || return $?
-
-	local ret=0
-	local files=("$@")
-	if ((${#files[@]} == 0)) ; then
-		files=(*)
-	fi
-
-	local f
-	for f in "${files[@]}"; do
-		f=${f##*/}
-		[[ -z $f ]] && continue
-		if cd ~/.bics/plugins/"$f" 2>/dev/null; then
-			echo "> updating plugin '$f'"
-			git pull
-		else
-			echo "> error updating plugin '$f'" >&2
-			((ret++))
-		fi
-	done
-
-	return "$ret"
-}
-
-self-upgrade() {
-	echo -n "> getting source from $SOURCE_URL... "
-	if ! curl -L -sS -o ~/.bics/bics.temp "$SOURCE_URL"; then
-		echo 'failed to fetch!!' >&2
-		return 1
-	fi
-
-	mv ~/.bics/bics.temp ~/.bics/bics
-	chmod +x ~/.bics/bics
-	echo 'done'
-	echo "> bics $(~/.bics/bics -v) installed"
-}
-
-help_() {
-	if [[ -z $1 ]]; then
-		usage
-		return 0
-	fi
-
-	local name d f file ret=0
-	for name in "$@"; do
-		file=
-		d=~/.bics/plugins/$name
-		if [[ ! -d $d ]]; then
-			echo "> plugin $name not found" >&2
-			ret=1
-			continue
-		fi
-
-		for f in "$d"/{*.txt,*.md,readme,ReadMe,README}; do
-			if [[ -f $f ]]; then
-				file=$f
-				break
+		local _word
+		for _word in "${words[@]}"; do
+			if [[ $_word == "$word"* || -z $word ]]; then
+				COMPREPLY+=("$_word")
 			fi
 		done
+	}
 
-		if [[ -z $file ]]; then
-			echo "> no documentation for $name found" >&2
-			ret=1
-			continue
-		fi
+#endregion
 
-		${PAGER:-less} "$file"
-	done
 
-	return "$ret"
-}
+#region COMMANDS
 
-cmd=$1
-shift
-case "$cmd" in
-	init) init;;
-	in|install) install_ "$@";;
-	rm|remove) remove_ "$@";;
-	list|ls) list "$@";;
-	update|up) update "$@";;
-	self-upgrade|fug) self-upgrade "$@";;
-	-h|help) help_ "$@";;
-	-v|v|version) echo "$BICS_VERSION";;
-	*) usage >&2; exit 1;;
-esac
+	#region SETUP COMMANDS
+
+		#/
+		 # Installs bics by itself
+		 #
+		 # @returns EXIT_STATUS
+		#/
+		self-install() {
+			local tteOff tteGreen tteCyan tteBold tteItalic tteBoldItalic tteTitle tteSubtitle tteTerm
+			tteOff="\e[0m"
+			tteGreen="\e[32;1m"
+			tteCyan="\e[36m"
+			tteBold="\e[1m"
+			tteItalic="\e[3m"
+			tteBoldItalic="\e[1;3m"
+			tteTitle="${tteGreen}${tteBold}"
+			tteSubtitle="${tteBold}${tteItalic}"
+			tteTerm="${tteCyan}${tteBoldItalic}"
+			echo -e "${tteBold}Installing bics...${tteOff}"
+			if [[ ! -d ~/.bics ]]; then
+				local dir=~/.bics/plugins/test-plugin
+				mkdir -p "$dir"
+				echo -e "  > ${tteGreen}~/.bics${tteOff} created"
+
+				echo '# add code here' > "$dir/test-plugin.bash"
+				echo 'this plugin does nothing' > "$dir/help.txt"
+
+				echo -e "  > ${tteGreen}test-plugin${tteOff} created"
+				echo -e "${tteBold}bics installed.${tteOff}"
+			fi
+			self-upgrade || return $?
+			echo -ne "\n\n"
+			echo -e "${tteTitle}BICS $BICS_VERSION${tteOff} | ${tteSubtitle}Bash Interactive Configuration Management${tteOff}"
+			echo -ne "\n"
+			echo -e "${tteBold}Getting Started${tteOff}"
+			echo -e "  1) Add '${tteTerm}. ~/.bics/bics${tteOff}' to your '${tteTerm}.bashrc${tteOff}' file.${tteOff}"
+			echo -e "  2) Run '${tteTerm}exec bash${tteOff}' to reload your current shell.${tteOff}"
+			echo -e "  3) Install plugins with '${tteTerm}bics install <repo>${tteOff}'.${tteOff}"
+			echo -e "  4) Run '${tteTerm}bics list${tteOff}' to view installed plugins.${tteOff}"
+			echo -e "  5) Run '${tteTerm}bics help${tteOff}' to view all available commands.${tteOff}"
+			echo -e "  6) Run '${tteTerm}bics about${tteOff}' for information related to ${tteTerm}bics${tteOff} and awesome plugins to try.${tteOff}"
+			echo -ne "\n"
+		}
+
+		#/
+		 # Upgrades bics by itself
+		 #
+		 # @requires curl
+		 # @returns EXIT_STATUS
+		#/
+		self-upgrade() {
+			echo -n "> getting source from $BICS_SOURCE_URL... "
+			if ! curl -L -sS -o ~/.bics/bics.temp "$BICS_SOURCE_URL"; then
+				echo 'failed to fetch!!' >&2
+				return 1
+			fi
+			mv ~/.bics/bics.temp ~/.bics/bics
+			chmod +x ~/.bics/bics
+			echo 'done'
+			echo "> bics $(~/.bics/bics -v) installed"
+		}
+
+	#endregion
+
+	#region MISC COMMANDS
+
+		usage() {
+			local tteOff tteGreen tteBold tteItalic tteBoldItalic tteTitle tteSubtitle tteGroup tteCmd tteCmdDes
+			tteOff="\e[0m"
+			tteGreen="\e[32;1m"
+			tteBold="\e[1m"
+			tteItalic="\e[3m"
+			tteBoldItalic="\e[1;3m"
+			tteTitle="${tteGreen}${tteBold}"
+			tteSubtitle="${tteBold}${tteItalic}"
+			tteGroup="${tteBold}"
+			tteCmd="  ${tteGreen}"
+			tteCmdDes="    "
+
+			echo -e "${tteTitle}BICS $BICS_VERSION${tteOff} | ${tteSubtitle}Bash Interactive Configuration Management${tteOff}"
+			echo -e ""
+			echo -e "Usage: bics ${tteItalic}[command] [args...]${tteOff}"
+			echo -e ""
+			echo -e "${tteGroup}General Commands:${tteOff}"
+			echo -e "${tteCmd}self-upgrade${tteOff}"
+			echo -e "${tteCmdDes}Upgrade ${tteBoldItalic}bics${tteOff} to the newest version from Github.${tteOff}"
+			echo -e "${tteCmdDes}Requires ${tteBoldItalic}curl${tteOff} installed.${tteOff}"
+			echo -e ""
+			echo -e "${tteCmd}version${tteOff}"
+			echo -e "${tteCmdDes}Print ${tteBoldItalic}bics${tteOff} version number.${tteOff}"
+			echo -e ""
+			echo -e "${tteCmd}help [name]${tteOff}"
+			echo -e "${tteCmdDes}Show help.${tteOff}"
+			echo -e "${tteCmdDes}If ${tteItalic}name${tteOff} is provided, show the specified plugin readme in \$PAGER.${tteOff}"
+			echo -e ""
+			echo -e "${tteGroup}Query Commands:${tteOff}"
+			echo -e "${tteCmd}list${tteOff}"
+			echo -e "${tteCmdDes}List installed ${tteBoldItalic}bics${tteOff} plugins.${tteOff}"
+			echo -e "${tteCmdDes}Installed plugins are stored in ${tteItalic}~/.bics/plugins${tteOff}.${tteOff}"
+			echo -e ""
+			echo -e "${tteGroup}Plugin Management Commands:${tteOff}"
+			echo -e "${tteCmd}install <repo> [name]${tteOff}"
+			echo -e "${tteCmdDes}Install a ${tteBoldItalic}bics${tteOff} plugin from a Github repository via ${tteBoldItalic}git clone${tteOff}.${tteOff}"
+			echo -e "${tteCmdDes}Requires ${tteBoldItalic}git${tteOff} installed.${tteOff}"
+			echo -e ""
+			echo -e "${tteCmd}upgrade [name]${tteOff}"
+			echo -e "${tteCmdDes}Upgrade ${tteBoldItalic}bics${tteOff} plugins via \`git pull\`.${tteOff}"
+			echo -e "${tteCmdDes}if ${tteItalic}name${tteOff} is not provided all plugins are upgraded.${tteOff}"
+			echo -e "${tteCmdDes}Requires ${tteBoldItalic}git${tteOff} installed.${tteOff}"
+			echo -e ""
+			echo -e "${tteCmd}remove <name> ...${tteOff}"
+			echo -e "${tteCmdDes}Remove a ${tteBoldItalic}bics${tteOff} plugin.${tteOff}"
+			echo -e ""
+		}
+
+		help_() {
+			if [[ -z $1 ]]; then
+				usage
+				return 0
+			fi
+
+			local name d f file ret=0
+			for name in "$@"; do
+				file=
+				d=~/.bics/plugins/$name
+				if [[ ! -d $d ]]; then
+					echo "> plugin $name not found" >&2
+					ret=1
+					continue
+				fi
+
+				for f in "$d"/{*.txt,*.md,readme,ReadMe,README}; do
+					if [[ -f $f ]]; then
+						file=$f
+						break
+					fi
+				done
+
+				if [[ -z $file ]]; then
+					echo "> no documentation for $name found" >&2
+					ret=1
+					continue
+				fi
+
+				${PAGER:-less} "$file"
+			done
+
+			return "$ret"
+		}
+
+		about() {
+			local tteOff tteGreen tteCyan tteBold tteItalic tteBoldItalic tteTitle tteSubtitle tteTerm tteGroup tteCmd tteCmdDes
+			tteOff="\e[0m"
+			tteGreen="\e[32;1m"
+			tteCyan="\e[36m"
+			tteBold="\e[1m"
+			tteItalic="\e[3m"
+			tteBoldItalic="\e[1;3m"
+			tteTitle="${tteGreen}${tteBold}"
+			tteSubtitle="${tteBold}${tteItalic}"
+			tteTerm="${tteCyan}${tteBoldItalic}"
+			tteGroup="${tteBold}"
+			tteCmd="  ${tteGreen}"
+			tteCmdDes="    "
+			echo -e "${tteTitle}BICS $BICS_VERSION${tteOff} | ${tteSubtitle}Bash Interactive Configuration Management${tteOff}"
+			echo -ne "\n"
+			echo -e "${tteBoldItalic}This version of ${tteTerm}bics${tteOff} is a fork of the original ${tteTerm}bics${tteOff} created by ${tteTerm}Dave Eddy${tteOff}."
+			echo -ne "\n"
+			echo -e "${tteBold}Dave Eddy${tteOff}"
+			echo -e " - Website: ${tteTerm}https://www.daveeddy.com${tteOff}"
+			echo -e " - GitHub : ${tteTerm}https://github.com/bahamas10${tteOff}"
+			echo -e " - YouTube: ${tteTerm}https://www.youtube.com/@yousuckatprogramming${tteOff}"
+			echo -ne "\n"
+			echo -e "${tteBold}bics Links${tteOff}"
+			echo -e " - Original Repository: ${tteTerm}https://github.com/bahamas10/bics${tteOff}"
+			echo -e " - Forked Repository  : ${tteTerm}https://github.com/AntonioSTM/bics${tteOff}"
+			echo -ne "\n"
+			echo -e "${tteBold}Plugins By ${tteTerm}Dave Eddy${tteOff}${tteOff}"
+			echo -e "${tteCmd}bash-cdstack${tteOff}"
+			echo -e "${tteCmdDes}Store the last X directories visited using cd in bash and jump quickly among them.${tteOff}"
+			echo -e "${tteCmdDes} > ${tteTerm}bics install https://github.com/bahamas10/bash-cdstack.git${tteOff}"
+			echo -ne "\n"
+			echo -e "${tteCmd}bash-analysis${tteOff}"
+			echo -e "${tteCmdDes}Various tools for text extraction, representation, and analysis.${tteOff}"
+			echo -e "${tteCmdDes} > ${tteTerm}bics install https://github.com/bahamas10/bash-analysis.git${tteOff}"
+			echo -ne "\n"
+			echo -e "${tteCmd}bash-dvorak${tteOff}"
+			echo -e "${tteCmdDes}Provide simple functions for switching to and from dvorak.${tteOff}"
+			echo -e "${tteCmdDes} > ${tteTerm}bics install https://github.com/bahamas10/bash-dvorak.git${tteOff}"
+			echo -ne "\n"
+			echo -e "${tteCmd}bash-interactivity${tteOff}"
+			echo -e "${tteCmdDes}Utilities to work with bash while interactive.${tteOff}"
+			echo -e "${tteCmdDes} > ${tteTerm}bics install https://github.com/bahamas10/bash-interactivity.git${tteOff}"
+			echo -ne "\n"
+			echo -e "${tteCmd}Bash Path${tteOff}"
+			echo -e "${tteCmdDes}Functions to modify colon separated variables like \$PATH or \$MANPATH.${tteOff}"
+			echo -e "${tteCmdDes} > ${tteTerm}bics install https://github.com/bahamas10/bash-path.git${tteOff}"
+			echo -ne "\n"
+			echo -e "${tteCmd}ts(1) - Tab Stop Manager for Vim${tteOff}"
+			echo -e "${tteCmdDes}Manage tab stop styles in Vim.${tteOff}"
+			echo -e "${tteCmdDes} > ${tteTerm}bics install https://github.com/bahamas10/tabstop.git${tteOff}"
+			echo -ne "\n\n"
+			# echo -ne "\n"
+			# echo -e "${tteCmd}      ${tteOff}"
+			# echo -e "${tteCmdDes}      ${tteOff}"
+			# echo -e "${tteCmdDes} > ${tteTerm}bics install ${tteOff}"
+		}
+
+	#endregion
+
+	#region PLUGIN COMMANDS
+
+		#/
+		 # List installed plugins
+		 #
+		 # @returns Installed plugins
+		#/
+		list() {
+			local folderPath pluginPath pluginName maxLen tmpLen outputFormat
+			local -a pluginIndex
+			local -A pluginList
+
+			maxLen=-1
+			for folderPath in ~/.bics/plugins/*/; do
+				pluginPath="${folderPath::-1}"
+				pluginName="${pluginPath##*/}"
+				tmpLen=${#pluginName}
+				((tmpLen > maxLen)) && maxLen=$tmpLen
+				pluginIndex+=("$pluginName")
+				pluginList["${pluginName}_path"]="$pluginPath"
+				if git -C "$pluginPath" rev-parse --git-dir > /dev/null 2>&1; then
+					pluginList["${pluginName}_source"]=$(git  -C "$pluginPath"  config  --get remote.origin.url)
+					pluginList["${pluginName}_installedVersion"]=$(git  -C "$pluginPath"  rev-parse HEAD)
+					pluginList["${pluginName}_sourceVersion"]=$(git  -C "$pluginPath"  ls-remote  -qb)
+				else
+					pluginList["${pluginName}_source"]="n/a"
+					pluginList["${pluginName}_installedVersion"]="n/a"
+					pluginList["${pluginName}_sourceVersion"]="n/a"
+				fi
+			done
+
+			outputFormat="%-${maxLen}s\t%-9s\t%-9s\t%s\n"
+			#shellcheck disable=SC2059
+			printf  "$outputFormat"  "PLUGIN"  "INSTALLED"  "LATEST" "SOURCE"
+			for pluginName in "${pluginIndex[@]}"; do
+				#shellcheck disable=SC2059
+				printf  "$outputFormat"  "$pluginName"  "${pluginList["${pluginName}_installedVersion"]:0:7}"  "${pluginList["${pluginName}_sourceVersion"]:0:7}"  "${pluginList["${pluginName}_source"]}"
+			done
+		}
+
+		#
+		 # Installs specified  plugin
+		 #
+		 # @param repository: Git repository of plugin to install.
+		 # @return void
+		 # @requires git
+		 # @remarks
+		 #   Plugins are installed by clonning the specified repository using git clone.
+		#
+		install_() {
+			local sourceUrl tteOff tteDefault tteCyan tteBold tteItalic tteTerm
+			tteOff="\e[0m"
+			tteDefault="\e[39;49m"
+			tteCyan="\e[36m"
+			tteBold="\e[1m"
+			tteItalic="\e[3m"
+			tteTerm="${tteCyan}${tteBoldItalic}"
+			sourceUrl="$1"
+			if [[ -z "$sourceUrl" ]]; then
+				echo '> repository must not be blank' >&2
+				return 1
+			fi
+			echo -e "${tteBold}> Installing plugin from source ${tteCyan}${tteItalic}$sourceUrl${tteDefault}${tteBold}...${tteOff}"
+			cd ~/.bics/plugins || return $?
+			# git  clone  "$@"
+			if git  clone  "$@"; then
+				echo -e "\n${tteBold}Plugin installed.${tteOff} Run '${tteTerm}exec bash${tteOff}' to reload your current shell.${tteOff}"
+			fi
+		}
+
+		#
+		 # Upgrades specified plugin or all plugins
+		 #
+		 # @param plugin_name: Plugin to upgrade.
+		 # @return EXIT_STATUS
+		 # @requires git
+		 # @remarks
+		 #   Plugins are upgraded by fetching the latest version using git pull.
+		#
+		upgrade() {
+			local pluginToUpdate
+			local listPluginsToUpdate=("$@")
+			local folderPath pluginPath
+			local -a pluginIndex
+			local -A pluginList
+
+			if ((${#listPluginsToUpdate[@]} == 0)); then
+				for folderPath in ~/.bics/plugins/*/; do
+					pluginPath="${folderPath::-1}"
+					pluginToUpdate="${pluginPath##*/}"
+					pluginIndex+=("$pluginToUpdate")
+					pluginList["${pluginToUpdate}_path"]="$pluginPath"
+				done
+			else
+				for pluginToUpdate in "${listPluginsToUpdate[@]}"; do
+					pluginPath=~/.bics/plugins/"$pluginToUpdate"
+					pluginToUpdate="${pluginToUpdate##*/}"
+					pluginIndex+=("$pluginToUpdate")
+					pluginList["${pluginToUpdate}_path"]="$pluginPath"
+				done
+			fi
+
+			for pluginToUpdate in "${pluginIndex[@]}"; do
+				if git  -C "${pluginList["${pluginToUpdate}_path"]}"  rev-parse  --git-dir > /dev/null 2>&1; then
+					pluginList["${pluginToUpdate}_source"]=$(git  -C "${pluginList["${pluginToUpdate}_path"]}"  config  --get remote.origin.url)
+					pluginList["${pluginToUpdate}_installedVersion"]=$(git  -C "${pluginList["${pluginToUpdate}_path"]}"  rev-parse HEAD)
+					pluginList["${pluginToUpdate}_sourceVersion"]=$(git  -C "${pluginList["${pluginToUpdate}_path"]}"  ls-remote  -qb)
+				else
+					pluginList["${pluginToUpdate}_source"]="n/a"
+					pluginList["${pluginToUpdate}_installedVersion"]="n/a"
+					pluginList["${pluginToUpdate}_sourceVersion"]="n/a"
+				fi
+			done
+
+			local tteOff tteDefault tteGreen tteRed tteCyan tteBold tteItalic tteBoldItalic tteTitle tteSubtitle tteGroup tteCmd tteCmdDes output
+			tteOff="\e[0m"
+			tteDefault="\e[39;49m"
+			tteGreen="\e[32;1m"
+			tteRed="\e[31m"
+			tteCyan="\e[36m"
+			tteBold="\e[1m"
+			tteItalic="\e[3m"
+			tteBoldItalic="\e[1;3m"
+			for pluginToUpdate in "${pluginIndex[@]}"; do
+				echo -e "${tteBold}> Upgrading plugin ${tteCyan}$pluginToUpdate${tteDefault}...${tteOff}"
+				if [[ "${pluginList["${pluginToUpdate}_source"]}" == "n/a" ]]; then
+					echo -ne "  ${tteRed}SKIPPED:${tteOff} Source not available.${tteOff}\n\n"
+					continue
+				fi
+				echo -e "  Source: ${tteCyan}${tteBoldItalic}${pluginList["${pluginToUpdate}_source"]}${tteOff}"
+				if [[ "${pluginList["${pluginToUpdate}_installedVersion"]:0:7}" != "${pluginList["${pluginToUpdate}_sourceVersion"]:0:7}" ]]; then
+					echo -e "  ${tteGreen}${tteBoldItalic}New version available${tteOff} [Installed: ${tteCyan}${tteBoldItalic}${pluginList["${pluginToUpdate}_installedVersion"]:0:7}${tteOff} | Latest: ${tteCyan}${tteBoldItalic}${pluginList["${pluginToUpdate}_sourceVersion"]:0:7}${tteOff}]${tteOff}"
+					output="$(git  -c color.ui=always  -C "${pluginList["${pluginToUpdate}_path"]}"  pull)"
+					echo -ne "  ${output//$'\n'/$'\n'  }\n\n"
+				else
+					echo -ne "  ${tteGreen}SKIPPED:${tteOff} Latest version [${tteGreen}${pluginList["${pluginToUpdate}_installedVersion"]:0:7}${tteOff}] already installed.${tteOff}\n\n"
+				fi
+			done
+		}
+
+		#/
+		 # Removes specified plugin
+		 #
+		 # @param plugin_name: Plugin to remove.
+		 # @return EXIT_STATUS
+		#/
+		remove_() {
+			if [[ -z $1 ]]; then
+				echo '> must specify a plugin to remove' >&2
+				return 1
+			fi
+
+			local yes=false
+			local option
+			while getopts y option; do
+				case "$option" in
+					y) yes=true ;;
+					*) return 1 ;;
+				esac
+			done
+			shift "$((OPTIND - 1))"
+
+			echo -n '> remove'
+			printf ' "%s"' "$@"
+			echo
+			local ans=n
+			if ! $yes; then
+				read -r -p '> are you sure? [y/N]: ' ans
+				[[ $ans == y ]] || return 1
+			fi
+
+			cd ~/.bics/plugins || return $?
+			rm -rf "$@"
+		}
+
+	#endregion
+
+#endregion
+
+
+#region ENTRY POINT
+	#echo "RUNNING FROM ${BASH_SOURCE[0]} | ${0}"
+	# check if being sourced, logic from
+	# https://github.com/lhunath/scripts/blob/master/bash/bashlib/bashlib
+	if (return 2> /dev/null); then
+		alias bics=~/.bics/bics
+		complete -F _bics-completion  bics
+		_
+		unset -f _
+		unset -f self-install
+		return
+	fi
+	# if we are here then this script is being executed interactively
+	cmd=$1
+	shift
+	case "$cmd" in
+		self-install) self-install ;;
+		self-upgrade) self-upgrade "$@" ;;
+		-v | version) echo "$BICS_VERSION" ;;
+		-h | help) help_ "$@" ;;
+		about) about ;;
+
+		ls | list) list "$@" ;;
+		in | install) install_ "$@" ;;
+		up | upgrade) upgrade "$@" ;;
+		rm | remove) remove_ "$@" ;;
+
+		*)
+			usage >&2
+			exit 1
+			;;
+	esac
+#endregion
