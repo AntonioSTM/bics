@@ -1,259 +1,144 @@
-bics - Bash Interactive Configuration System
-============================================
+# bics | Bash Interactive Configuration System
 
-A modular framework for interactive bash plugin management
-without overcomplicating your `.bashrc`
+> [!NOTE]
+> This is a fork of [bics](https://github.com/bahamas10/bics) by [Dave Eddy](https://github.com/bahamas10).
 
-Installation
-------------
+A modular framework for interactive bash plugin management without overcomplicating your `.bashrc`.
 
-You can install `bics` locally by running the following one-liner
+## License
 
+MIT
+
+## Installation
+
+Install **bics** by following the next steps:
+
+1. Execute **bics** remotely to start the installation process.
+
+    ```bash
     bash <(curl -sS https://raw.githubusercontent.com/AntonioSTM/bics/master/bics) self-install
+    ```
 
-Running this again after `bics` is installed will upgrade `bics` to the
-latest version from GitHub.
+2. After installation has finished, edit the `.bashrc` file to source bics
 
-Getting Started
----------------
+    - Option 1: Manually append the following lines to the `.bashrc`file:
 
-### Setup
+        ```bash
 
-After installing `bics`, add the following line to your `.bashrc` file
+        #region BICS
+            . ~/.bics/bics
+        #endregion
 
-``` bash
-. ~/.bics/bics
-```
+        ```
 
-...and then exec bash to load the plugins
+    - Option 2: Execute the following command to append the required lines to the `.bashrc` file:
 
-    $ exec bash
-    $ bics list
-    > test-plugin
+        ```bash
+        echo -e "\n#region BICS\n\t. ~/.bics/bics\n#endregion\n" >> ~/.bashrc
+        ```
 
-As you can see, one plugin has been installed automatically, `test-plugin`.  You can
-view its source with:
+3. Reload current shell either by closing and reopening the terminal or by executing the following command:
 
-    $ cat ~/.bics/plugins/test-plugin/*.bash
-    # add code here
-
-This plugin doesn't do much, but it shows how to add plugins for use by `bics`.
-
-`bics` will search `~/.bics/plugin/*/*.bash` and source every file matching that glob
-
-To get started, you can delete that plugin by running
-
-    bics remove test-plugin
-
-...or achieve the same thing manually by running
-
-    rm -r ~/.bics/plugins/test-plugin
-
-Now, when you list the installed plugins you'll see nothing
-
-    $ bics ls
-    $
-
-Notice that `ls` is an alias for `list`
-
-### Installing Plugins
-
-Plugins are installed to `~/.bics/plugins` as directories that contain 1 or more
-`.bash` files.  Let's install a simple plugin that is on GitHub.
-
-To install this plugin we run:
-
-    $ bics install https://github.com/AntonioSTM/bash-cdstack
-    Cloning into 'bash-cdstack'...
-    remote: Counting objects: 8, done.
-    remote: Compressing objects: 100% (6/6), done.
-    remote: Total 8 (delta 2), reused 8 (delta 2)
-    Unpacking objects: 100% (8/8), done.
-
-This is a shorthand way of running:
-
-    cd ~/.bics/plugins && git clone https://github.com/AntonioSTM/bash-cdstack
-
-And that's it! The plugin is installed, you can start using it by running:
-
+    ```bash
     exec bash
+    ```
 
-... to reload the bash environment
+4. Verify that **bics** was sourced and is running correctly.
 
-You can list installed plugins to see that `cdstack` is present
+    ```bash
+    bics version
+    ```
 
-    $ bics ls
-    > bash-cdstack
+[![asciicast](https://asciinema.org/a/wrM1cljHRFTWdnFeYIlVb784s.svg)](https://asciinema.org/a/wrM1cljHRFTWdnFeYIlVb784s)
 
-See [Managing Plugins](#managing-plugins) for more information about storing
-plugins in a dotfiles repository as submodules
+## Upgrade
 
-Run the following to get help on the command line
+Upgrade **bics** to the latest version executing the command `self-upgrade`:
 
-    $ bics help
-    usage: bics [command] [args...]
-    (v0.0.8)
-    ...
-
-You can also run `bics help` on any plugin to view it's documentation in
-your `PAGER` (defaults to `less`).
-
-    $ bics help bash-cdstack
-
-This will open `$PAGER` on the `README.md` file in the repository.  `bics`
-scans for files that look like documentation and opens the first one it
-finds, the order is:
-
-    {*.txt,*.md,readme,ReadMe,README}
-
-So if you create a plugin and would like to include a help text specifically
-for the command line, create a `.txt` file
-
----
-
-Here is a list of plugins Dave wrote for bics:
-
-- [bash-cdstack](https://www.github.com/AntonioSTM/bash-cdstack)
-- [bash-analysis](https://www.github.com/AntonioSTM/bash-analysis)
-- [bash-dvorak](https://www.github.com/AntonioSTM/bash-dvorak)
-- [bash-interactivity](https://www.github.com/AntonioSTM/bash-interactivity)
-- [bash-path](https://www.github.com/AntonioSTM/bash-path)
-- [tabstop](https://www.github.com/AntonioSTM/tabstop)
-
-Plugins
--------
-
-### Creating a Plugin
-
-Creating a plugin is meant to be simple and easy.  At the core, a plugin needs
-to be a directory with 1 or more `.bash` files that will be sourced upon bash's
-execution.  Take a look at the `test-plugin` directory that is created when
-`bics` is installed to see how a simple plugin looks.
-
-Ideally, plugins will each have their own repository here on GitHub, and
-can be stored in a users dotfiles repository as git submodules.
-
-An example real-world plugin can be seen here https://github.com/AntonioSTM/bash-cdstack
-
-### Managing Plugins
-
-You can store your plugins as git submodules stored in a dotfiles repo. An
-example can be seen here, specifically the `bics-plugins` directory.
-
-https://github.com/AntonioSTM/dotfiles
-
-This commit shows an example git submodule added, and logic to install `bics`
-initially and symlink the plugins directory accordingly.
-
-https://github.com/AntonioSTM/dotfiles/commit/50cd7a236069cf98eacf170b2d6629e814075fb8
-
-**NOTE:** if you use this method, `bics install` and `bics update` will not
-work as expected, you'll need to manage the plugins manually with `git`.
-
-Environment
------------
-
-`bics` tries not to clutter up your namespace or clobber variables in your
-shell. Below is a list of all variables/functions/aliases created by `bics`
-
-### Global Variables
-
-- `BICS_VERSION` - the version of `bics` when it was sourced
-- `BICS_SOURCED` - an array of relative filenames that were sourced by `bics`
-
-example:
-
-    $ echo "$BICS_VERSION"
-    v0.0.5
-    $ printf '%s\n' "${BICS_SOURCED[@]}"
-    /home/dave/.bics/plugins/bash-analysis/analysis.bash
-    /home/dave/.bics/plugins/bash-cdstack/cdstack.bash
-    /home/dave/.bics/plugins/bash-dvorak/dvorak.bash
-
-### Exported Variables
-
-None.
-
-### Aliases
-
-- `bics` - aliased to `~/.bics/bics`
-
-### Functions
-
-- `_bics` - used for bash completion
-- `_` - anonymous function used (and cleared) by `bics`
-
-A standard convention for plugins is to use `_` as a throwaway function name to
-allow for local variables that don't clutter up the default namespace.  A
-similar technique is used in JavaScript to create anonymous, self-executing
-functions to avoid creating global variables.
-
-example
-
-``` bash
-_() {
-    local i=0
-    local foo=bar
-    echo "$foo" > "/tmp/something.$i"
-}
-_
+```bash
+bics self-upgrade
 ```
 
-In this example, `i` and `foo` are not made global.  The only thing made global
-is the `_` function
+[![asciicast](https://asciinema.org/a/03Utjd7Vncy9G9ubjbEp2TzYO.svg)](https://asciinema.org/a/03Utjd7Vncy9G9ubjbEp2TzYO)
 
-`bics` will unset `_` (the function) after it has finished loading plugins
+## Version
 
-### Bash Completion
+View the **bics** version currently installed executing the command `version`:
 
-Provided for...
+```bash
+bics version
+```
 
-- `bics`
+[![asciicast](https://asciinema.org/a/oAy13Xi8Q69a4h3K5YkJ4jsyy.svg)](https://asciinema.org/a/oAy13Xi8Q69a4h3K5YkJ4jsyy)
 
-Updates
--------
+## Help
 
-You can update all plugins, or a specific plugin by running
+View all the commands that **bics** has and what they executing the command `help`:
 
-    $ bics update [name]
+```bash
+bics help
+```
 
-If `name` is empty, all plugins are updated
+[![asciicast](https://asciinema.org/a/OrUnq531oXX9jafMWvK9Va34k.svg)](https://asciinema.org/a/OrUnq531oXX9jafMWvK9Va34k)
 
-You can update `bics` itself at anytime by running
+## About
 
-    $ bics self-upgrade
-    > getting source from https://githubusercontent.com/AntonioSTM/bics/raw/master/bics... done
+View information about **bics** executing the command `about`:
 
-Dependencies
-------------
+```bash
+bics about
+```
 
-`bics` doesn't require any external programs to source plugins that are already
-installed, however some of the extra features require various programs to be
-installed.
+[![asciicast](https://asciinema.org/a/KS4v9dYbqI1Ls6sXV0m46cLfZ.svg)](https://asciinema.org/a/KS4v9dYbqI1Ls6sXV0m46cLfZ)
 
-### `git`
+## Plugin Commands
 
-Required for `bics install` and `bics update`.  The only operations done are
-`git clone` and `git pull` respectively.
+### Plugins Installed
 
-### `tput`
+View all the installed plugins executing the command `list`:
 
-Required for `bics help` and `bics init` to colorize output - will silently fail
-if not found.
+```bash
+bics list
+```
 
-Pull Requests
--------------
+[![asciicast](https://asciinema.org/a/u4csoLfmdxtHkNYfN2scEv4Fz.svg)](https://asciinema.org/a/u4csoLfmdxtHkNYfN2scEv4Fz)
 
-Any code submitted should pass the syntax check:
+### Install Plugin
 
-    $ make check
-    expand bics | awk 'length($0) > 80 { exit(1); }'
-    ./bics -h | expand |  awk 'length($0) > 80 { exit(1); }'
-    shellcheck bics
+Install a plugin executing the commmand `install <repository>`:
 
-Bash style guide: https://github.com/AntonioSTM/bash-style-guide
+```bash
+bics install https://github.com/bahamas10/bash-cdstack.git
+```
 
-License
--------
+[![asciicast](https://asciinema.org/a/tXI8q1tTgS9AQtjMCj5HtfzsQ.svg)](https://asciinema.org/a/tXI8q1tTgS9AQtjMCj5HtfzsQ)
 
-MIT License
+### Upgrade Plugin
+
+Upgrade a plugin to the latest version executing the commmand `upgrade <plugin_name>`:
+
+```bash
+bics install https://github.com/bahamas10/bash-cdstack.git
+```
+
+[![asciicast](https://asciinema.org/a/hzro0WqVChKwiwW4PFACrTLTY.svg)](https://asciinema.org/a/hzro0WqVChKwiwW4PFACrTLTY)
+
+### Plugin Help
+
+View plugin help executing the commmand `help <plugin_name>`:
+
+```bash
+bics help bash-cdstack
+```
+
+[![asciicast](https://asciinema.org/a/lwJ17efGslaSu1oO2KGPWQEfR.svg)](https://asciinema.org/a/lwJ17efGslaSu1oO2KGPWQEfR)
+
+### Remove Plugin
+
+View plugin help executing the commmand `remove <plugin_name>`:
+
+```bash
+bics remove bash-cdstack
+```
+
+[![asciicast](https://asciinema.org/a/DqNlkEMGlMXMgPy4Jl1o41S3Q.svg)](https://asciinema.org/a/DqNlkEMGlMXMgPy4Jl1o41S3Q)
